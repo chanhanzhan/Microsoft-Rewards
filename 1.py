@@ -31,12 +31,11 @@ class Config:
         "Android": "Mozilla/5.0 (Linux; Android 14; 23078RKD5C Build/UP1A.230905.011) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.193 Mobile Safari/537.36",
         "PC": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 Edg/132.0.0.0"
     }
-    SELECTED_UA = "desktop"  # 选择使用的UA
+    SELECTED_UA = "PC"  # 选择使用的UA
     SIMULATE_TYPING = False  # 是否模拟输入
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         
         logging.StreamHandler()
@@ -100,6 +99,7 @@ class BingRewardsAutomator:
         options = webdriver.ChromeOptions()
         options.add_argument(f"--user-data-dir={self.unique_dir}")
         options.add_argument(f"--user-agent={Config.USER_AGENTS[Config.SELECTED_UA]}")
+        options.add_argument("--log-level=3")  # 忽略特定错误日志消息
 
         if os.getenv("HEADLESS", "true").lower() == "false":
             options.add_argument("--headless")
@@ -202,7 +202,7 @@ class BingRewardsAutomator:
                 EC.element_to_be_clickable((By.XPATH, "//button[contains(., '同意') or contains(., '接受')]"))
             )
             consent_button.click()
-            logging.info("已处理隐私协议弹窗")
+            #logging.info("已处理隐私协议弹窗")
             sleep(random.uniform(*Config.BASE_DELAY))
         except TimeoutException:
             pass
@@ -213,10 +213,10 @@ class BingRewardsAutomator:
             WebDriverWait(driver, Config.ELEMENT_TIMEOUT).until(
                 EC.presence_of_element_located((By.ID, "id_rh"))
             )
-            logging.info("用户登录状态验证成功")
+            logging.info("用户状态验证成功")
             return True
         except TimeoutException:
-            logging.info("用户登录状态验证成功")
+            logging.info("用户状态验证成功")
             return True  # 移除验证失败的检查
 
     def _perform_search_flow(self, driver: webdriver.Chrome, keyword: str):
@@ -259,7 +259,7 @@ class BingRewardsAutomator:
             self._handle_consent_dialog(driver)
             
             if not self._verify_login_state(driver):
-                raise RuntimeError("登录状态验证失败，请检查Cookies")
+                raise RuntimeError("登录验证失败，请检查Cookies")
 
             keywords = self._load_search_keywords()
             self._execute_searches(driver, keywords)
