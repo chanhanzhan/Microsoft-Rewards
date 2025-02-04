@@ -1,30 +1,28 @@
 #!/usr/bin/env python
 # -- coding:utf-8 --
+
 import os
 import logging
-import json
-from time import sleep
-from selenium import webdriver
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import (WebDriverException,
-                                        NoSuchElementException,
-                                        TimeoutException)
-import shutil
-import time
 import random
 import string
+import shutil
+import time
+from time import sleep
 from typing import List, Dict
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import WebDriverException, TimeoutException
 from contextlib import contextmanager
 
 # 配置常量
 class Config:
-    MAX_SEARCH_COUNT = 30                # 最大搜索次数
+    MAX_SEARCH_COUNT = 15                # 最大搜索次数
     MAX_BROWSER_RETRIES = 3             # 浏览器最大重试次数
-    ELEMENT_TIMEOUT = 25                # 元素等待超时(秒)
+    ELEMENT_TIMEOUT = 10                # 元素等待超时(秒)
     BASE_DELAY = (1, 15)                # 基础随机延迟范围
     RETRY_DELAY = 5                     # 重试等待时间
     USER_AGENTS = {
@@ -33,17 +31,19 @@ class Config:
     }
     SELECTED_UA = "PC"  # 选择使用的UA
     SIMULATE_TYPING = False  # 是否模拟输入
+    HEADLESS = False  # 是否开启无头模式
+
 # 配置日志
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.INFO, 
+    format='%(asctime)s - %(levelname)s - %(message)s',  # 修改日志格式
     handlers=[
-        
         logging.StreamHandler()
     ]
 )
 
 # 禁用其他级别的日志
-logging.getLogger().setLevel(logging.INFO)
+logging.getLogger().setLevel(logging.INFO)  # 禁用DEBUG级别日志
 
 class BingRewardsAutomator:
     def __init__(self):
@@ -65,10 +65,6 @@ class BingRewardsAutomator:
         if not os.path.exists(self.driver_path):
             raise FileNotFoundError(f"Chromedriver未找到: {self.driver_path}")
         
-        # 移除验证 Cookie 是否有效的检查
-        # if not self.cookies:
-        #     raise ValueError("未找到有效Cookie，请检查cookie.txt文件")
-
     @contextmanager
     def _browser_context(self):
         """浏览器上下文管理器"""
@@ -101,9 +97,9 @@ class BingRewardsAutomator:
         options.add_argument(f"--user-agent={Config.USER_AGENTS[Config.SELECTED_UA]}")
         options.add_argument("--log-level=3")  # 忽略特定错误日志消息
 
-        if os.getenv("HEADLESS", "true").lower() == "false":
+        if Config.HEADLESS:
             options.add_argument("--headless")
-            options.add_argument("--disable-gpu")
+            options.add_argument("--disable-gpu")  # 确保禁用GPU加速
             options.add_argument("--no-sandbox")
             options.add_argument("--disable-dev-shm-usage")
             options.add_argument("--window-size=720,680")
@@ -202,7 +198,6 @@ class BingRewardsAutomator:
                 EC.element_to_be_clickable((By.XPATH, "//button[contains(., '同意') or contains(., '接受')]"))
             )
             consent_button.click()
-            #logging.info("已处理隐私协议弹窗")
             sleep(random.uniform(*Config.BASE_DELAY))
         except TimeoutException:
             pass
@@ -217,7 +212,7 @@ class BingRewardsAutomator:
             return True
         except TimeoutException:
             logging.info("用户状态验证成功")
-            return True  # 移除验证失败的检查
+            return True
 
     def _perform_search_flow(self, driver: webdriver.Chrome, keyword: str):
         """执行单个搜索流程"""
@@ -245,15 +240,14 @@ class BingRewardsAutomator:
             )
             logging.debug("搜索结果页加载成功")
 
-        except TimeoutException as e:
-        
+        except TimeoutException:
             pass
         except Exception as e:
-        
-            pass
+            logging.warning("执行搜索时出错: %s", str(e))
 
     def run(self):
         """主执行流程"""
+        start_time = time.time()  # 记录开始时间
         with self._browser_context() as driver:
             self._inject_cookies(driver)
             self._handle_consent_dialog(driver)
@@ -263,6 +257,10 @@ class BingRewardsAutomator:
 
             keywords = self._load_search_keywords()
             self._execute_searches(driver, keywords)
+        
+        end_time = time.time()  # 记录结束时间
+        total_time = end_time - start_time
+        logging.info("总运行时间: %.2f 秒", total_time)  # 输出总运行时间
 
     def _load_search_keywords(self) -> List[str]:
         """加载搜索关键词"""
@@ -311,8 +309,9 @@ class BingRewardsAutomator:
     def _random_delay(self, base: tuple = Config.BASE_DELAY):
         """生成随机延迟"""
         delay = random.uniform(*base)
-        logging.debug("等待 %.2f 秒", delay)
+        logging.info("等待 %.2f 秒", delay)  # 修改日志级别为INFO以输出延迟时间
         time.sleep(delay)
+
 
 if __name__ == "__main__":
     try:
