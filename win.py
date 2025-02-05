@@ -2,10 +2,12 @@
 # -- coding:utf-8 --
 
 import os
+os.environ['PYDEVD_DISABLE_FILE_VALIDATION'] = '1'
 import logging
 import random
 import string
 import shutil
+#import ptvsd
 import time
 from time import sleep
 from typing import List, Dict
@@ -17,7 +19,13 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import WebDriverException, TimeoutException
 from contextlib import contextmanager
+import debugpy
+""" 
+debugpy.listen(("localhost", 9229))
+print("Waiting for debugger attach...")
+debugpy.wait_for_client()
 
+ """
 # 配置常量
 class Config:
     MAX_SEARCH_COUNT = 15                # 最大搜索次数
@@ -30,12 +38,12 @@ class Config:
         "PC": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 Edg/132.0.0.0"
     }
     SELECTED_UA = "PC"  # 选择使用的UA
-    SIMULATE_TYPING = False  # 是否模拟输入
+    SIMULATE_TYPING = True  # 是否模拟输入
     HEADLESS = False  # 是否开启无头模式
 
 # 配置日志
 logging.basicConfig(
-    level=logging.INFO, 
+    level=logging.DEBUG, 
     format='%(asctime)s - %(levelname)s - %(message)s',  # 修改日志格式
     handlers=[
         logging.StreamHandler()
@@ -43,7 +51,7 @@ logging.basicConfig(
 )
 
 # 禁用其他级别的日志
-logging.getLogger().setLevel(logging.INFO)  # 禁用DEBUG级别日志
+logging.getLogger().setLevel(logging.DEBUG)  # 禁用DEBUG级别日志
 
 class BingRewardsAutomator:
     def __init__(self):
@@ -52,6 +60,12 @@ class BingRewardsAutomator:
         self.driver_path = os.path.join(self.current_dir, "chromedriver.exe")
         self.cookies = self._load_cookies()             # 初始化时加载cookie
         self._validate_environment()
+        self._log_run_mode()                           # 显示运行模式
+
+    def _log_run_mode(self):
+        """显示运行模式"""
+        mode = "无头模式" if Config.HEADLESS else "有头模式"
+        logging.info("当前运行模式: %s", mode)
 
     def _generate_profile_dir(self) -> str:
         """生成随机浏览器配置目录"""

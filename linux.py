@@ -58,6 +58,12 @@ class BingRewardsAutomator:
         self.browser_path = self._get_browser_path()  # 获取浏览器的路径
         self.cookies = self._load_cookies()             # 初始化时加载cookie
         self._validate_environment()
+        self._log_run_mode()                           # 显示运行模式
+
+    def _log_run_mode(self):
+        """显示运行模式"""
+        mode = "无头模式" if Config.HEADLESS else "有头模式"
+        logging.info("当前运行模式: %s", mode)
 
     def _generate_profile_dir(self) -> str:
         """生成随机浏览器配置目录"""
