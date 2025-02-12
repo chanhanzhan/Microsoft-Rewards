@@ -16,5 +16,7 @@ if __name__ == "__main__":
     # 根据操作系统运行不同的脚本
     if platform.system() == "Windows":
         run_script("win.py")
+        run_script("win-Android.py")
     elif platform.system() == "Linux":
         run_script("linux.py")
+        run_script("linux-Android.py")

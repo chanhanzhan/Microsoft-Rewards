@@ -1,41 +1,44 @@
 #!/usr/bin/env python
 # -- coding:utf-8 --
+
 import os
+os.environ['PYDEVD_DISABLE_FILE_VALIDATION'] = '1'
 import logging
-import json
-from time import sleep
-from selenium import webdriver
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import (WebDriverException,
-                                        NoSuchElementException,
-                                        TimeoutException)
-import shutil
-import time
 import random
 import string
+import shutil
+#import ptvsd
+import time
+from time import sleep
 from typing import List, Dict
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import WebDriverException, TimeoutException
 from contextlib import contextmanager
+import debugpy
+""" 
+debugpy.listen(("localhost", 9229))
+print("Waiting for debugger attach...")
+debugpy.wait_for_client()
 
+ """
 # 配置常量
 class Config:
-    MAX_SEARCH_COUNT = 50                # 最大搜索次数
+    MAX_SEARCH_COUNT = 50              # 最大搜索次数
     MAX_BROWSER_RETRIES = 3             # 浏览器最大重试次数
-    ELEMENT_TIMEOUT = 10                # 元素等待超时(秒)
+    ELEMENT_TIMEOUT = 5                # 元素等待超时(秒)
     BASE_DELAY = (1, 15)                # 基础随机延迟范围
     RETRY_DELAY = 5                     # 重试等待时间
     USER_AGENTS = {
         "Android": "Mozilla/5.0 (Linux; Android 14; 23078RKD5C Build/UP1A.230905.011) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.193 Mobile Safari/537.36",
         "PC": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 Edg/132.0.0.0"
     }
-    SELECTED_UA = "PC"  # 选择使用的UA
-    SIMULATE_TYPING = False  # 是否模拟输入
-    BROWSER_TYPE = "chromium"  # 可选值: "chrome", "chromium"
-    CHROME_PATH = "/usr/bin/google-chrome"
-    CHROMIUM_PATH = "/usr/bin/chromium"
+    SELECTED_UA = "Android"  # 选择使用的UA
+    SIMULATE_TYPING = True  # 是否模拟输入
     HEADLESS = True  # 是否开启无头模式
 
 # 配置日志
@@ -54,8 +57,7 @@ class BingRewardsAutomator:
     def __init__(self):
         self.current_dir = os.getcwd()
         self.unique_dir = self._generate_profile_dir()  # 随机生成配置目录
-        self.driver_path = os.path.join(self.current_dir, "chromedriver")  # 修改为Linux系统的chromedriver路径
-        self.browser_path = self._get_browser_path()  # 获取浏览器的路径
+        self.driver_path = os.path.join(self.current_dir, "chromedriver.exe")
         self.cookies = self._load_cookies()             # 初始化时加载cookie
         self._validate_environment()
         self._log_run_mode()                           # 显示运行模式
@@ -72,19 +74,11 @@ class BingRewardsAutomator:
             "chrome_profile_" + ''.join(random.choices(string.ascii_letters + string.digits, k=8))
         )
 
-    def _get_browser_path(self) -> str:
-        """获取浏览器的路径"""
-        if Config.BROWSER_TYPE == "chromium":
-            return Config.CHROMIUM_PATH
-        return Config.CHROME_PATH
-
     def _validate_environment(self):
         """验证必要环境"""
         if not os.path.exists(self.driver_path):
             raise FileNotFoundError(f"Chromedriver未找到: {self.driver_path}")
-        if not os.path.exists(self.browser_path):
-            raise FileNotFoundError(f"浏览器未找到: {self.browser_path}")
-
+        
     @contextmanager
     def _browser_context(self):
         """浏览器上下文管理器"""
@@ -116,7 +110,6 @@ class BingRewardsAutomator:
         options.add_argument(f"--user-data-dir={self.unique_dir}")
         options.add_argument(f"--user-agent={Config.USER_AGENTS[Config.SELECTED_UA]}")
         options.add_argument("--log-level=3")  # 忽略特定错误日志消息
-        options.binary_location = self.browser_path  # 设置浏览器的路径
 
         if Config.HEADLESS:
             options.add_argument("--headless")
@@ -341,4 +334,4 @@ if __name__ == "__main__":
         logging.info("程序执行完成")
     except Exception as e:
         logging.error("程序执行失败: %s", str(e), exc_info=True)
-        exit(0)
+        exit(1)

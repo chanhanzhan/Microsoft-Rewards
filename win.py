@@ -28,9 +28,9 @@ debugpy.wait_for_client()
  """
 # 配置常量
 class Config:
-    MAX_SEARCH_COUNT = 15                # 最大搜索次数
+    MAX_SEARCH_COUNT = 50               # 最大搜索次数
     MAX_BROWSER_RETRIES = 3             # 浏览器最大重试次数
-    ELEMENT_TIMEOUT = 10                # 元素等待超时(秒)
+    ELEMENT_TIMEOUT = 5                # 元素等待超时(秒)
     BASE_DELAY = (1, 15)                # 基础随机延迟范围
     RETRY_DELAY = 5                     # 重试等待时间
     USER_AGENTS = {
@@ -39,11 +39,11 @@ class Config:
     }
     SELECTED_UA = "PC"  # 选择使用的UA
     SIMULATE_TYPING = True  # 是否模拟输入
-    HEADLESS = False  # 是否开启无头模式
+    HEADLESS = True  # 是否开启无头模式
 
 # 配置日志
 logging.basicConfig(
-    level=logging.DEBUG, 
+    level=logging.INFO, 
     format='%(asctime)s - %(levelname)s - %(message)s',  # 修改日志格式
     handlers=[
         logging.StreamHandler()
@@ -51,7 +51,7 @@ logging.basicConfig(
 )
 
 # 禁用其他级别的日志
-logging.getLogger().setLevel(logging.DEBUG)  # 禁用DEBUG级别日志
+logging.getLogger().setLevel(logging.INFO)  # 禁用DEBUG级别日志
 
 class BingRewardsAutomator:
     def __init__(self):

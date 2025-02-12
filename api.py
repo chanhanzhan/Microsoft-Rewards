@@ -99,7 +99,7 @@ def fetch_and_parse_api_data():
 
         # 定义查找的键和排除的标题关键词
         keys_to_find = ['lifetimePoints', 'availablePoints']
-        exclude_keywords = ['可兑','优惠券', '抽奖机', '电脑搜索', '数字金币', '活动', '打分', '兑换', '码', '元',"当日连续","连续奖励","200","user","拼图","答案","套装","Office","充值","GAP","day","礼品卡","捐款","抽奖","World","爱心","boss","of","Local","Sweetheart","Audiofile","Founder"]
+        exclude_keywords = ['可兑','优惠券', '抽奖机', '电脑搜索','免费', '数字金币', '活动', '打分', '兑换', '码', '元',"当日连续","连续奖励","200","user","拼图","答案","套装","Office","充值","GAP","day","礼品卡","捐款","抽奖","World","爱心","boss","of","Local","Sweetheart","Audiofile","Founder"]
 
         # 提取信息
         extracted_info = extract_info(json_data, keys_to_find, exclude_keywords)

@@ -22,7 +22,7 @@ from contextlib import contextmanager
 
 # 配置常量
 class Config:
-    MAX_SEARCH_COUNT = 50                # 最大搜索次数
+    MAX_SEARCH_COUNT = 50              # 最大搜索次数
     MAX_BROWSER_RETRIES = 3             # 浏览器最大重试次数
     ELEMENT_TIMEOUT = 10                # 元素等待超时(秒)
     BASE_DELAY = (1, 15)                # 基础随机延迟范围
@@ -31,7 +31,7 @@ class Config:
         "Android": "Mozilla/5.0 (Linux; Android 14; 23078RKD5C Build/UP1A.230905.011) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.193 Mobile Safari/537.36",
         "PC": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 Edg/132.0.0.0"
     }
-    SELECTED_UA = "PC"  # 选择使用的UA
+    SELECTED_UA = "Android"  # 选择使用的UA
     SIMULATE_TYPING = False  # 是否模拟输入
     BROWSER_TYPE = "chromium"  # 可选值: "chrome", "chromium"
     CHROME_PATH = "/usr/bin/google-chrome"
