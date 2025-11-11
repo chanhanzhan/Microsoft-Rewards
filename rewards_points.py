@@ -85,31 +85,56 @@ def get_rewards_points(cookie_file: str) -> Dict:
             # 访问Bing并注入cookies
             driver.get("https://www.bing.com")
             
-            # 加载cookies
+            # 加载cookies - 支持JSON和文本格式
             if os.path.exists(cookie_file):
-                with open(cookie_file, "r", encoding="utf-8") as f:
-                    for line in f.readlines():
-                        line = line.strip()
-                        if not line or line.startswith("#"):
-                            continue
-                        
-                        cookie_dict = {}
-                        for part in line.split(';'):
-                            part = part.strip()
-                            if '=' in part:
-                                key, value = part.split('=', 1)
-                                cookie_dict[key.strip()] = value.strip()
-                        
-                        if "name" in cookie_dict and "value" in cookie_dict:
-                            try:
-                                driver.add_cookie({
-                                    "name": cookie_dict["name"],
-                                    "value": cookie_dict["value"],
-                                    "domain": cookie_dict.get("domain", ".bing.com"),
-                                    "path": cookie_dict.get("path", "/"),
-                                })
-                            except:
-                                pass
+                import json
+                # 尝试使用JSON格式（新格式，更可靠）
+                json_cookie_file = cookie_file.replace('.txt', '_json.txt')
+                cookies_loaded = False
+                
+                if os.path.exists(json_cookie_file):
+                    try:
+                        with open(json_cookie_file, 'r', encoding='utf-8') as f:
+                            cookies_list = json.load(f)
+                            for cookie in cookies_list:
+                                try:
+                                    # 清理domain（移除前导点）
+                                    domain = cookie.get('domain', '.bing.com')
+                                    if domain.startswith('.'):
+                                        cookie['domain'] = domain[1:]
+                                    driver.add_cookie(cookie)
+                                except Exception as e:
+                                    logging.debug(f"添加cookie失败: {e}")
+                            cookies_loaded = True
+                            logging.info(f"从JSON格式加载了cookies")
+                    except Exception as e:
+                        logging.warning(f"加载JSON cookies失败: {e}")
+                
+                # 如果JSON格式加载失败，尝试旧的文本格式
+                if not cookies_loaded:
+                    with open(cookie_file, "r", encoding="utf-8") as f:
+                        for line in f.readlines():
+                            line = line.strip()
+                            if not line or line.startswith("#"):
+                                continue
+                            
+                            cookie_dict = {}
+                            for part in line.split(';'):
+                                part = part.strip()
+                                if '=' in part:
+                                    key, value = part.split('=', 1)
+                                    cookie_dict[key.strip()] = value.strip()
+                            
+                            if "name" in cookie_dict and "value" in cookie_dict:
+                                try:
+                                    driver.add_cookie({
+                                        "name": cookie_dict["name"],
+                                        "value": cookie_dict["value"],
+                                        "domain": cookie_dict.get("domain", ".bing.com"),
+                                        "path": cookie_dict.get("path", "/"),
+                                    })
+                                except:
+                                    pass
                 
                 driver.refresh()
                 time.sleep(3)
