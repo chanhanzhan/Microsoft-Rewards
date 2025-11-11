@@ -16,8 +16,11 @@
 - [Python 3](https://www.python.org/)
 
 ## 第三方库
-- [Selenium](https://www.selenium.dev/)
-- [Requests](https://docs.python-requests.org/en/latest/)
+- [Selenium](https://www.selenium.dev/) - 浏览器自动化
+- [Requests](https://docs.python-requests.org/en/latest/) - HTTP请求
+- [webdriver-manager](https://github.com/SergeyPirogov/webdriver_manager) - 自动管理ChromeDriver（无需手动下载）
+- [undetected-chromedriver](https://github.com/ultrafunkamsterdam/undetected-chromedriver) - 绕过自动化检测
+- [pyvirtualdisplay](https://github.com/ponty/PyVirtualDisplay) - Linux下的xvfb虚拟显示支持
 
 ## 安装使用：
 
@@ -25,13 +28,19 @@
 pip install -r requirements.txt
 ```
 
-- 下载安装配置Chrome浏览器驱动
+**注意：** 不再需要手动下载和配置ChromeDriver！项目现在使用webdriver-manager自动管理浏览器驱动。
 
-  在Chrome浏览器地址栏输入 'chrome://version/' 查看浏览器版本
+### Linux用户额外依赖（可选）
 
-- 下载对应版本的 ChromeDriver
+如果在Linux系统下使用无头模式，建议安装xvfb以获得更好的兼容性：
 
-  [Chromedriver](https://chromedriver.chromium.org/downloads)
+```sh
+# Ubuntu/Debian
+sudo apt-get install xvfb
+
+# CentOS/RHEL
+sudo yum install xorg-x11-server-Xvfb
+```
 
 ## 使用说明
 
@@ -69,13 +78,27 @@ python api.py
 
 ## 备注
 - 🌟 代码在Win10 + Python3.8环境中编写，如果在其他平台上运行出行问题，欢迎提issue。
+- ✨ 已实现自动ChromeDriver管理，无需手动下载和配置
+- 🔒 使用undetected-chromedriver技术绕过自动化检测
+- 🖥️ Linux系统支持xvfb虚拟显示，实现真正的无头运行
+- 🚀 优化了登录状态检测和Cookie管理机制
+
+## 新增特性
+- ✅ 自动ChromeDriver管理 - 使用webdriver-manager自动下载和更新驱动
+- ✅ 反自动化检测 - 集成undetected-chromedriver绕过检测
+- ✅ xvfb支持 - Linux无头模式下使用虚拟显示提高稳定性
+- ✅ 增强的登录验证 - 多种方式验证登录状态，提高可靠性
+- ✅ 改进的关键词获取 - 添加重试机制和备用关键词
+- ✅ 优化的浏览器配置 - 更多反检测参数和性能优化
 
 ## 待完成的功能
-- 【抓取微博热搜用于搜索】
+- ~~【自动适配浏览器和ChromeDriver】~~ ✅ 已完成
+- ~~【移除ChromeDriver手动配置需求】~~ ✅ 已完成  
+- ~~【优化浏览器无头模式】~~ ✅ 已完成
+- ~~【防止自动化识别】~~ ✅ 已完成
 - 【添加定时任务功能】 
 - 【添加多用户管理】
 - 【兑换提醒】
-- 【自动适配浏览器和ChromeDriver】
 
 ![image](https://user-images.githubusercontent.com/3378350/230837253-1132c32f-30b5-4ead-9cae-70f8209ef55b.png)
 
