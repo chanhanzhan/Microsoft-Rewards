@@ -7,28 +7,25 @@ import logging
 import random
 import string
 import shutil
-#import ptvsd
 import time
 from time import sleep
 from typing import List, Dict
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
+try:
+    import undetected_chromedriver as uc
+except ImportError:
+    uc = None
+    from selenium import webdriver
+    from selenium.webdriver.chrome.service import Service
+    from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import WebDriverException, TimeoutException
 from contextlib import contextmanager
-# import debugpy
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 from cookie_manager import is_cookie_valid, get_bing_cookies
-""" 
-# debugpy.listen(("localhost", 9229))
-# print("Waiting for debugger attach...")
-# debugpy.wait_for_client()
-
- """
 # 配置常量
 class Config:
     MAX_SEARCH_COUNT = 50               # 最大搜索次数
@@ -60,9 +57,7 @@ class BingRewardsAutomator:
     def __init__(self):
         self.current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.unique_dir = self._generate_profile_dir()  # 随机生成配置目录
-        self.driver_path = os.path.join(self.current_dir, "chromedriver.exe")
         self.cookies = self._load_cookies()             # 初始化时加载cookie
-        self._validate_environment()
         self._log_run_mode()                           # 显示运行模式
 
     def _log_run_mode(self):
@@ -77,11 +72,6 @@ class BingRewardsAutomator:
             "chrome_profile_" + ''.join(random.choices(string.ascii_letters + string.digits, k=8))
         )
 
-    def _validate_environment(self):
-        """验证必要环境"""
-        if not os.path.exists(self.driver_path):
-            raise FileNotFoundError(f"Chromedriver未找到: {self.driver_path}")
-        
     @contextmanager
     def _browser_context(self):
         """浏览器上下文管理器"""
@@ -94,14 +84,29 @@ class BingRewardsAutomator:
             self._clean_profile_dir()
 
     def _init_browser(self) -> webdriver.Chrome:
-        """初始化浏览器实例"""
+        """初始化浏览器实例，使用undetected-chromedriver或webdriver-manager"""
         options = self._configure_browser_options()
-        service = Service(executable_path=self.driver_path)
         
         try:
-            driver = webdriver.Chrome(service=service, options=options)
+            if uc:
+                # 使用undetected_chromedriver避免检测
+                driver = uc.Chrome(options=options, version_main=None, user_data_dir=self.unique_dir)
+            else:
+                # 使用标准selenium + webdriver-manager
+                service = Service(ChromeDriverManager().install())
+                driver = webdriver.Chrome(service=service, options=options)
+                
+                # 修改navigator.webdriver标志
+                driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+                    "source": """
+                        Object.defineProperty(navigator, 'webdriver', {
+                            get: () => undefined
+                        })
+                    """
+                })
+            
             driver.implicitly_wait(Config.ELEMENT_TIMEOUT)
-            driver.set_page_load_timeout(Config.ELEMENT_TIMEOUT)
+            driver.set_page_load_timeout(30)
             return driver
         except WebDriverException as e:
             logging.error("浏览器初始化失败: %s", str(e))
@@ -109,17 +114,22 @@ class BingRewardsAutomator:
 
     def _configure_browser_options(self) -> webdriver.ChromeOptions:
         """配置浏览器选项"""
-        options = webdriver.ChromeOptions()
-        options.add_argument(f"--user-data-dir={self.unique_dir}")
+        if uc:
+            options = uc.ChromeOptions()
+        else:
+            options = webdriver.ChromeOptions()
+            
+        if not uc:
+            options.add_argument(f"--user-data-dir={self.unique_dir}")
         options.add_argument(f"--user-agent={Config.USER_AGENTS[Config.SELECTED_UA]}")
         options.add_argument("--log-level=3")  # 忽略特定错误日志消息
 
         if Config.HEADLESS:
-            options.add_argument("--headless")
-            options.add_argument("--disable-gpu")  # 确保禁用GPU加速
+            options.add_argument("--headless=new")
+            options.add_argument("--disable-gpu")
             options.add_argument("--no-sandbox")
             options.add_argument("--disable-dev-shm-usage")
-            options.add_argument("--window-size=720,680")
+            options.add_argument("--window-size=1920,1080")
 
         # 反自动化检测配置
         options.add_argument("--disable-blink-features=AutomationControlled")
@@ -130,6 +140,11 @@ class BingRewardsAutomator:
         options.add_argument("--disable-extensions")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--disable-software-rasterizer")
+        
+        # 其他反检测参数
+        options.add_argument("--disable-infobars")
+        options.add_argument("--start-maximized")
+        
         return options
 
     def _load_cookies(self) -> List[Dict]:
@@ -222,15 +237,37 @@ class BingRewardsAutomator:
             pass
 
     def _verify_login_state(self, driver: webdriver.Chrome) -> bool:
-        """验证登录状态"""
+        """验证登录状态 - 增强版"""
         try:
-            WebDriverWait(driver, Config.ELEMENT_TIMEOUT).until(
-                EC.presence_of_element_located((By.ID, "id_rh"))
-            )
-            logging.info("用户状态验证成功")
+            # 尝试多种方式验证登录状态
+            # 1. 检查用户菜单元素
+            try:
+                WebDriverWait(driver, Config.ELEMENT_TIMEOUT).until(
+                    EC.presence_of_element_located((By.ID, "id_rh"))
+                )
+                logging.info("用户状态验证成功（方法1：用户菜单）")
+                return True
+            except TimeoutException:
+                pass
+            
+            # 2. 检查页面源代码中的登录标识
+            page_source = driver.page_source.lower()
+            login_indicators = ["rewards dashboard", "积分", "points", "signed in", "已登录"]
+            if any(indicator in page_source for indicator in login_indicators):
+                logging.info("用户状态验证成功（方法2：页面内容）")
+                return True
+            
+            # 3. 检查cookie中是否有认证信息
+            cookies = driver.get_cookies()
+            auth_cookies = [c for c in cookies if any(key in c.get('name', '').lower() for key in ['auth', 'token', 'session'])]
+            if auth_cookies:
+                logging.info("用户状态验证成功（方法3：认证Cookie）")
+                return True
+            
+            logging.warning("无法验证登录状态，但将继续执行")
             return True
-        except TimeoutException:
-            logging.info("用户状态验证成功")
+        except Exception as e:
+            logging.warning("登录状态验证异常: %s", str(e))
             return True
 
     def _perform_search_flow(self, driver: webdriver.Chrome, keyword: str):

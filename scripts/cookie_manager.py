@@ -1,14 +1,20 @@
 import os
 import time
-from selenium import webdriver
+import random
+import platform
+try:
+    import undetected_chromedriver as uc
+except ImportError:
+    uc = None
+    from selenium import webdriver
+    from selenium.webdriver.chrome.service import Service
+    from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
-import random
 
 def actionchains_offset_click(driver, element, x_ratio=0.5, y_ratio=0.5):
     size = element.size
@@ -38,7 +44,11 @@ def cdp_click(driver, element, x_ratio=0.5, y_ratio=0.5):
         "clickCount": 1
     })
 
-def get_bing_cookies(username, password, driver_path="chromedriver.exe", headless=True, cookie_file=None):
+def get_bing_cookies(username, password, driver_path=None, headless=True, cookie_file=None):
+    """
+    获取Bing Cookie，不再需要手动指定driver_path
+    如果安装了undetected_chromedriver，会优先使用它来避免检测
+    """
     user_agents = [
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 Edg/132.0.0.0",
@@ -46,12 +56,45 @@ def get_bing_cookies(username, password, driver_path="chromedriver.exe", headles
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.193 Safari/537.36",
         "Mozilla/5.0 (Linux; Android 14; 23078RKD5C Build/UP1A.230905.011) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.193 Mobile Safari/537.36"
     ]
-    options = webdriver.ChromeOptions()
-    options.add_argument("--incognito")
-    options.add_argument(f"--user-agent={random.choice(user_agents)}")
-    if headless:
-        options.add_argument("--headless")
-    driver = webdriver.Chrome(service=Service(driver_path), options=options)
+    
+    # 使用undetected_chromedriver（如果可用）或标准selenium
+    if uc:
+        options = uc.ChromeOptions()
+        options.add_argument("--incognito")
+        options.add_argument(f"--user-agent={random.choice(user_agents)}")
+        # 添加反检测参数
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        if headless:
+            options.add_argument("--headless=new")
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+        driver = uc.Chrome(options=options, version_main=None)
+    else:
+        options = webdriver.ChromeOptions()
+        options.add_argument("--incognito")
+        options.add_argument(f"--user-agent={random.choice(user_agents)}")
+        # 添加反检测参数
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        options.add_experimental_option("useAutomationExtension", False)
+        if headless:
+            options.add_argument("--headless=new")
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+        
+        # 使用webdriver-manager自动管理driver
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=options)
+        
+        # 修改navigator.webdriver标志
+        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+            "source": """
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                })
+            """
+        })
+    
     driver.get("https://login.live.com/")
     try:
         retry_count = 0
@@ -161,15 +204,22 @@ def get_bing_cookies(username, password, driver_path="chromedriver.exe", headles
             except Exception:
                 pass
             time.sleep(15)
-        # 等待登录完成
+        # 等待登录完成并验证
         time.sleep(5)
       
+        # 访问账户页面验证登录状态
         driver.get("https://account.microsoft.com/")
         time.sleep(5)
        
-        page_source = driver.page_source
-        if ("账户" not in page_source) and ("Account" not in page_source):
+        # 更健壮的登录验证
+        page_source = driver.page_source.lower()
+        is_logged_in = any(keyword in page_source for keyword in ["账户", "account", "profile", "个人资料"])
+        
+        if not is_logged_in:
             print("登录后未检测到账户主页，cookie 可能无效！")
+        else:
+            print("登录验证成功！")
+        
         cookies = driver.get_cookies()
         driver.quit()
         if not cookie_file:
