@@ -34,6 +34,22 @@ scheduler = None
 execution_logs = []
 execution_lock = Lock()
 
+def sanitize_username(username):
+    """验证并清理用户名，防止路径注入"""
+    import re
+    if not re.match(r'^[a-zA-Z0-9@._-]+$', username):
+        return None
+    return username
+
+def safe_error_response(error_msg, log_error=None, status_code=400):
+    """返回安全的错误响应，不暴露详细堆栈信息"""
+    if log_error:
+        logging.error(log_error)
+    return jsonify({
+        "success": False,
+        "error": error_msg
+    }), status_code
+
 def init_app():
     """初始化应用"""
     global config_manager, scheduler
@@ -89,10 +105,7 @@ def update_config():
             "message": "配置已更新"
         })
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 400
+        return safe_error_response("配置更新失败", f"配置更新失败: {e}")
 
 @app.route('/api/accounts', methods=['GET'])
 def get_accounts():
@@ -132,10 +145,11 @@ def add_account():
         password = data.get('password')
         
         if not username:
-            return jsonify({
-                "success": False,
-                "error": "用户名不能为空"
-            }), 400
+            return safe_error_response("用户名不能为空")
+        
+        # Sanitize username
+        if not sanitize_username(username):
+            return safe_error_response("无效的用户名格式")
         
         if config_manager.add_account(username, password):
             return jsonify({
@@ -143,20 +157,18 @@ def add_account():
                 "message": f"账户 {username} 已添加"
             })
         else:
-            return jsonify({
-                "success": False,
-                "error": "账户已存在"
-            }), 400
+            return safe_error_response("账户已存在")
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 400
+        return safe_error_response("添加账户失败", f"添加账户失败: {e}")
 
 @app.route('/api/accounts/<username>', methods=['DELETE'])
 def delete_account(username):
     """删除账户"""
     try:
+        # Sanitize username to prevent path injection
+        if not sanitize_username(username):
+            return safe_error_response("无效的用户名格式")
+        
         config_manager.remove_account(username)
         
         # 同时删除cookie文件
@@ -169,22 +181,20 @@ def delete_account(username):
             "message": f"账户 {username} 已删除"
         })
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 400
+        return safe_error_response("删除账户失败", f"删除账户失败: {e}")
 
 @app.route('/api/accounts/<username>/points', methods=['GET'])
 def get_account_points(username):
     """获取账户积分"""
     try:
+        # Sanitize username to prevent path injection
+        if not sanitize_username(username):
+            return safe_error_response("无效的用户名格式")
+        
         cookie_file = os.path.join(os.path.dirname(__file__), f"cookie_{username}.txt")
         
         if not os.path.exists(cookie_file):
-            return jsonify({
-                "success": False,
-                "error": "Cookie文件不存在"
-            }), 404
+            return safe_error_response("Cookie文件不存在", status_code=404)
         
         # 在后台线程查询积分，避免阻塞
         from rewards_points import get_rewards_points
@@ -195,15 +205,16 @@ def get_account_points(username):
             "points": points
         })
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 400
+        return safe_error_response("获取积分失败", f"获取积分失败: {e}")
 
 @app.route('/api/accounts/<username>/cookie', methods=['POST'])
 def refresh_account_cookie(username):
     """刷新账户Cookie"""
     try:
+        # Sanitize username to prevent path injection
+        if not sanitize_username(username):
+            return safe_error_response("无效的用户名格式")
+        
         # 获取账户信息
         accounts = config_manager.get_accounts()
         account = None
@@ -213,10 +224,7 @@ def refresh_account_cookie(username):
                 break
         
         if not account:
-            return jsonify({
-                "success": False,
-                "error": "账户不存在"
-            }), 404
+            return safe_error_response("账户不存在", status_code=404)
         
         password = account.get('password')
         if not password:
@@ -225,10 +233,7 @@ def refresh_account_cookie(username):
             password = data.get('password')
             
             if not password:
-                return jsonify({
-                    "success": False,
-                    "error": "需要提供密码"
-                }), 400
+                return safe_error_response("需要提供密码")
         
         # 在后台线程刷新cookie
         def refresh_cookie():
@@ -249,18 +254,23 @@ def refresh_account_cookie(username):
             "message": "Cookie刷新已启动"
         })
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 400
+        return safe_error_response("刷新Cookie失败", f"刷新Cookie失败: {e}")
 
 @app.route('/api/accounts/<username>', methods=['PUT'])
 def update_account(username):
     """更新账户信息"""
     try:
+        # Sanitize usernames to prevent path injection
+        if not sanitize_username(username):
+            return safe_error_response("无效的用户名格式")
+        
         data = request.json or {}
         new_username = data.get('username', username)
         new_password = data.get('password')
+        
+        # Validate new username if provided
+        if new_username != username and not sanitize_username(new_username):
+            return safe_error_response("新用户名格式无效")
         
         # 查找并更新账户
         accounts = config_manager.get_accounts()
@@ -274,10 +284,7 @@ def update_account(username):
                 break
         
         if not found:
-            return jsonify({
-                "success": False,
-                "error": "账户不存在"
-            }), 404
+            return safe_error_response("账户不存在", status_code=404)
         
         config_manager.save_accounts(accounts)
         
@@ -293,10 +300,7 @@ def update_account(username):
             "message": "账户已更新"
         })
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 400
+        return safe_error_response("更新账户失败", f"更新账户失败: {e}")
 
 @app.route('/api/execute', methods=['POST'])
 def execute_task():
@@ -305,6 +309,10 @@ def execute_task():
         data = request.json or {}
         username = data.get('username')
         device = data.get('device', 'all')  # pc, mobile, all
+        
+        # Validate username if provided
+        if username and not sanitize_username(username):
+            return safe_error_response("无效的用户名格式")
         
         # 在后台线程执行任务
         def run_task():
@@ -327,10 +335,7 @@ def execute_task():
             "message": "任务已启动"
         })
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 400
+        return safe_error_response("任务启动失败", f"任务启动失败: {e}")
 
 @app.route('/api/logs', methods=['GET'])
 def get_logs():
@@ -366,10 +371,7 @@ def start_scheduler():
             "message": "调度器已启动"
         })
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 400
+        return safe_error_response("启动调度器失败", f"启动调度器失败: {e}")
 
 @app.route('/api/scheduler/stop', methods=['POST'])
 def stop_scheduler():
@@ -382,10 +384,7 @@ def stop_scheduler():
             "message": "调度器已停止"
         })
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": str(e)
-        }), 400
+        return safe_error_response("停止调度器失败", f"停止调度器失败: {e}")
 
 def add_log(log_entry):
     """添加日志条目（供外部调用）"""

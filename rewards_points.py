@@ -38,6 +38,19 @@ def get_rewards_points(cookie_file: str) -> Dict:
     Returns:
         Dict: 包含积分信息的字典
     """
+    # Validate cookie_file path to prevent path injection
+    import re
+    cookie_filename = os.path.basename(cookie_file)
+    if not re.match(r'^cookie_[a-zA-Z0-9@._-]+\.txt$', cookie_filename):
+        return {
+            "success": False,
+            "available_points": 0,
+            "lifetime_points": 0,
+            "daily_point_progress": 0,
+            "daily_point_max": 0,
+            "error": "无效的Cookie文件名"
+        }
+    
     result = {
         "success": False,
         "available_points": 0,
