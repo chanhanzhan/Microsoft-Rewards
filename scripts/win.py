@@ -148,7 +148,7 @@ class BingRewardsAutomator:
         return options
 
     def _load_cookies(self) -> List[Dict]:
-        """从文件加载Cookies"""
+        """从文件加载Cookies - 支持JSON和文本格式"""
         cookie_path = os.environ.get("COOKIE_FILE")
         if not cookie_path:
             cookie_path = os.path.join(self.current_dir, "cookie.txt")
@@ -156,6 +156,29 @@ class BingRewardsAutomator:
             raise FileNotFoundError(f"Cookie文件未找到: {cookie_path}")
 
         cookies = []
+        
+        # 尝试使用JSON格式（新格式，更可靠）
+        json_cookie_path = cookie_path.replace('.txt', '_json.txt')
+        if os.path.exists(json_cookie_path):
+            try:
+                import json
+                with open(json_cookie_path, 'r', encoding='utf-8') as f:
+                    cookies_list = json.load(f)
+                    for cookie in cookies_list:
+                        # 转换为selenium格式
+                        cookies.append({
+                            "name": cookie.get("name"),
+                            "value": cookie.get("value"),
+                            "domain": cookie.get("domain", ".bing.com"),
+                            "path": cookie.get("path", "/"),
+                            "secure": cookie.get("secure", False)
+                        })
+                logging.info("成功从JSON格式加载 %d 个Cookies", len(cookies))
+                return cookies
+            except Exception as e:
+                logging.warning("加载JSON格式cookies失败: %s，尝试文本格式...", str(e))
+        
+        # 使用旧的文本格式
         with open(cookie_path, "r", encoding="utf-8") as f:
             for line in f.readlines():
                 line = line.strip()
@@ -192,7 +215,7 @@ class BingRewardsAutomator:
         if not cookies:
             logging.error("未找到有效Cookie")
         else:
-            logging.info("成功加载 %d 个Cookies", len(cookies))
+            logging.info("成功从文本格式加载 %d 个Cookies", len(cookies))
         
         return cookies
 
