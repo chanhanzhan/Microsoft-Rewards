@@ -40,6 +40,9 @@ def get_rewards_points(cookie_file: str) -> Dict:
     """
     # Validate cookie_file path to prevent path injection
     import re
+    import os
+    
+    # 验证文件名格式
     cookie_filename = os.path.basename(cookie_file)
     if not re.match(r'^cookie_[a-zA-Z0-9@._-]+\.txt$', cookie_filename):
         return {
@@ -49,6 +52,18 @@ def get_rewards_points(cookie_file: str) -> Dict:
             "daily_point_progress": 0,
             "daily_point_max": 0,
             "error": "无效的Cookie文件名"
+        }
+    
+    # 验证文件路径，防止路径遍历攻击
+    cookie_file = os.path.abspath(cookie_file)
+    if '..' in cookie_file or not os.path.exists(os.path.dirname(cookie_file)):
+        return {
+            "success": False,
+            "available_points": 0,
+            "lifetime_points": 0,
+            "daily_point_progress": 0,
+            "daily_point_max": 0,
+            "error": "无效的Cookie文件路径"
         }
     
     result = {

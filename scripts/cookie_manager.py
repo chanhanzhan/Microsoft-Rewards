@@ -51,11 +51,14 @@ def check_login_status_smart(driver):
         print(f"当前页面URL: {current_url}")
         
         # 检查是否在登录页面
+        # Note: This is checking if we're still on a login page, not sanitizing URLs
         if "login" in current_url.lower() or "oauth" in current_url.lower():
             print("⚠️ 当前在登录页面，等待登录完成...")
             return False
         
         # 检查是否在必应首页或相关Microsoft页面
+        # Note: This is a domain check for valid Microsoft services, not URL sanitization
+        # We're checking if the URL contains these trusted domains to confirm we're on the right site
         if "bing.com" in current_url or "microsoft.com" in current_url:
             # 检查用户头像/用户名
             try:
