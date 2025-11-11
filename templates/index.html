@@ -357,6 +357,13 @@
                         <input type="checkbox" id="automation-enabled">
                         <label>启用自动化</label>
                     </div>
+                    <div class="form-group">
+                        <label>运行模式</label>
+                        <select id="automation-mode">
+                            <option value="random_24h">24小时内随机运行</option>
+                            <option value="fixed">固定时间运行</option>
+                        </select>
+                    </div>
                     <div class="checkbox-group">
                         <input type="checkbox" id="first-run-on-start">
                         <label>启动时立即运行</label>
@@ -366,6 +373,22 @@
                     <div class="form-group">
                         <label>最大搜索次数</label>
                         <input type="number" id="max-search-count" min="1" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>基础延迟（秒）最小值</label>
+                        <input type="number" id="base-delay-min" min="0" max="60">
+                    </div>
+                    <div class="form-group">
+                        <label>基础延迟（秒）最大值</label>
+                        <input type="number" id="base-delay-max" min="0" max="60">
+                    </div>
+                    <div class="form-group">
+                        <label>重试延迟（秒）</label>
+                        <input type="number" id="retry-delay" min="1" max="60">
+                    </div>
+                    <div class="form-group">
+                        <label>最大重试次数</label>
+                        <input type="number" id="max-retries" min="1" max="10">
                     </div>
                     <div class="checkbox-group">
                         <input type="checkbox" id="simulate-typing">
@@ -381,12 +404,31 @@
                         <input type="checkbox" id="pc-enabled">
                         <label>启用PC设备</label>
                     </div>
+                    <div class="form-group">
+                        <label>PC User-Agent</label>
+                        <textarea id="pc-user-agent" rows="3"></textarea>
+                    </div>
                     <div class="checkbox-group">
                         <input type="checkbox" id="mobile-enabled">
                         <label>启用移动设备</label>
                     </div>
+                    <div class="form-group">
+                        <label>Mobile User-Agent</label>
+                        <textarea id="mobile-user-agent" rows="3"></textarea>
+                    </div>
+                    
+                    <h3 style="margin-top: 30px;">WebUI配置</h3>
+                    <div class="form-group">
+                        <label>监听地址</label>
+                        <input type="text" id="webui-host">
+                    </div>
+                    <div class="form-group">
+                        <label>监听端口</label>
+                        <input type="number" id="webui-port" min="1" max="65535">
+                    </div>
                     
                     <button class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+                    <button class="btn btn-secondary" onclick="loadConfig()">重新加载</button>
                 </div>
             </div>
             
@@ -478,10 +520,27 @@
                             const li = document.createElement('li');
                             li.className = 'account-item';
                             li.innerHTML = `
-                                <span>${account.username} ${account.has_password ? '🔐' : ''}</span>
-                                <button class="btn btn-danger" onclick="deleteAccount('${account.username}')">删除</button>
+                                <div>
+                                    <span style="font-weight: bold;">${account.username}</span>
+                                    ${account.has_password ? '🔐' : ''}
+                                    ${account.has_cookie ? '🍪' : ''}
+                                    <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                                        <span id="points-${account.username}">积分: 加载中...</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <button class="btn btn-secondary" onclick="refreshPoints('${account.username}')">查询积分</button>
+                                    <button class="btn btn-secondary" onclick="refreshCookie('${account.username}')">刷新Cookie</button>
+                                    <button class="btn btn-secondary" onclick="editAccount('${account.username}')">编辑</button>
+                                    <button class="btn btn-danger" onclick="deleteAccount('${account.username}')">删除</button>
+                                </div>
                             `;
                             list.appendChild(li);
+                            
+                            // 自动加载积分（可选）
+                            if (account.has_cookie) {
+                                loadAccountPoints(account.username);
+                            }
                         });
                     }
                     
@@ -498,6 +557,100 @@
             } catch (error) {
                 console.error('加载账户失败:', error);
             }
+        }
+        
+        // 加载账户积分
+        async function loadAccountPoints(username) {
+            try {
+                const response = await fetch(`/api/accounts/${username}/points`);
+                const data = await response.json();
+                const pointsElem = document.getElementById(`points-${username}`);
+                
+                if (data.success && data.points.success) {
+                    const p = data.points;
+                    pointsElem.innerHTML = `
+                        积分: ${p.available_points} 
+                        ${p.lifetime_points > 0 ? `(总计: ${p.lifetime_points})` : ''}
+                        ${p.daily_point_max > 0 ? `| 今日: ${p.daily_point_progress}/${p.daily_point_max}` : ''}
+                    `;
+                    pointsElem.style.color = '#28a745';
+                } else {
+                    pointsElem.textContent = `积分: 查询失败 (${data.points.error || data.error})`;
+                    pointsElem.style.color = '#dc3545';
+                }
+            } catch (error) {
+                const pointsElem = document.getElementById(`points-${username}`);
+                if (pointsElem) {
+                    pointsElem.textContent = '积分: 查询失败';
+                    pointsElem.style.color = '#dc3545';
+                }
+            }
+        }
+        
+        // 刷新积分
+        async function refreshPoints(username) {
+            const pointsElem = document.getElementById(`points-${username}`);
+            pointsElem.textContent = '积分: 查询中...';
+            pointsElem.style.color = '#666';
+            await loadAccountPoints(username);
+        }
+        
+        // 刷新Cookie
+        async function refreshCookie(username) {
+            if (!confirm(`确定要刷新账户 ${username} 的Cookie吗？这将打开浏览器进行登录。`)) return;
+            
+            try {
+                const response = await fetch(`/api/accounts/${username}/cookie`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Cookie刷新已启动，请在浏览器中完成登录');
+                } else {
+                    alert('刷新失败: ' + data.error);
+                }
+            } catch (error) {
+                alert('刷新失败: ' + error);
+            }
+        }
+        
+        // 编辑账户
+        function editAccount(username) {
+            const newUsername = prompt('输入新用户名 (留空不修改):', username);
+            const newPassword = prompt('输入新密码 (留空不修改):');
+            
+            if (newUsername === null) return; // 用户取消
+            
+            const updateData = {};
+            if (newUsername && newUsername !== username) {
+                updateData.username = newUsername;
+            }
+            if (newPassword) {
+                updateData.password = newPassword;
+            }
+            
+            if (Object.keys(updateData).length === 0) {
+                alert('没有修改任何内容');
+                return;
+            }
+            
+            fetch(`/api/accounts/${username}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(updateData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('账户已更新');
+                    loadAccounts();
+                } else {
+                    alert('更新失败: ' + data.error);
+                }
+            })
+            .catch(error => alert('更新失败: ' + error));
         }
         
         // 添加账户
@@ -554,12 +707,21 @@
                 if (data.success) {
                     const config = data.config;
                     document.getElementById('automation-enabled').checked = config.automation.enabled;
+                    document.getElementById('automation-mode').value = config.automation.mode || 'random_24h';
                     document.getElementById('first-run-on-start').checked = config.automation.first_run_on_start;
                     document.getElementById('max-search-count').value = config.execution.max_search_count;
+                    document.getElementById('base-delay-min').value = config.execution.base_delay[0];
+                    document.getElementById('base-delay-max').value = config.execution.base_delay[1];
+                    document.getElementById('retry-delay').value = config.execution.retry_delay;
+                    document.getElementById('max-retries').value = config.execution.max_retries;
                     document.getElementById('simulate-typing').checked = config.execution.simulate_typing;
                     document.getElementById('headless').checked = config.execution.headless;
                     document.getElementById('pc-enabled').checked = config.devices.pc.enabled;
+                    document.getElementById('pc-user-agent').value = config.devices.pc.user_agent;
                     document.getElementById('mobile-enabled').checked = config.devices.mobile.enabled;
+                    document.getElementById('mobile-user-agent').value = config.devices.mobile.user_agent;
+                    document.getElementById('webui-host').value = config.webui.host;
+                    document.getElementById('webui-port').value = config.webui.port;
                 }
             } catch (error) {
                 console.error('加载配置失败:', error);
@@ -570,12 +732,23 @@
         async function saveConfig() {
             const config = {
                 'automation.enabled': document.getElementById('automation-enabled').checked,
+                'automation.mode': document.getElementById('automation-mode').value,
                 'automation.first_run_on_start': document.getElementById('first-run-on-start').checked,
                 'execution.max_search_count': parseInt(document.getElementById('max-search-count').value),
+                'execution.base_delay': [
+                    parseInt(document.getElementById('base-delay-min').value),
+                    parseInt(document.getElementById('base-delay-max').value)
+                ],
+                'execution.retry_delay': parseInt(document.getElementById('retry-delay').value),
+                'execution.max_retries': parseInt(document.getElementById('max-retries').value),
                 'execution.simulate_typing': document.getElementById('simulate-typing').checked,
                 'execution.headless': document.getElementById('headless').checked,
                 'devices.pc.enabled': document.getElementById('pc-enabled').checked,
-                'devices.mobile.enabled': document.getElementById('mobile-enabled').checked
+                'devices.pc.user_agent': document.getElementById('pc-user-agent').value,
+                'devices.mobile.enabled': document.getElementById('mobile-enabled').checked,
+                'devices.mobile.user_agent': document.getElementById('mobile-user-agent').value,
+                'webui.host': document.getElementById('webui-host').value,
+                'webui.port': parseInt(document.getElementById('webui-port').value)
             };
             
             try {
@@ -588,6 +761,7 @@
                 
                 if (data.success) {
                     alert('配置已保存');
+                    loadStatus(); // 刷新状态
                 } else {
                     alert('保存失败: ' + data.error);
                 }

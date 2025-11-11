@@ -13,9 +13,9 @@ class ConfigManager:
     DEFAULT_CONFIG = {
         "version": "1.0.0",
         "automation": {
-            "enabled": False,
+            "enabled": True,  # 默认启用自动化
             "mode": "random_24h",  # random_24h: 24小时内随机运行, fixed: 固定时间运行
-            "first_run_on_start": True,
+            "first_run_on_start": False,  # 默认不立即运行
             "timezone": "Asia/Shanghai"
         },
         "execution": {

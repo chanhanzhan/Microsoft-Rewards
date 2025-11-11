@@ -12,9 +12,6 @@ import logging
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import ConfigManager
-from scheduler import AutomationScheduler
-from task_runner import TaskRunner
-from scripts.cookie_manager import is_cookie_valid, get_bing_cookies
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,6 +21,10 @@ logging.basicConfig(
 
 def run_cli_mode(config_manager: ConfigManager, username: str = None, device: str = 'all'):
     """命令行模式 - 执行任务"""
+    # Import dependencies only when needed
+    from task_runner import TaskRunner
+    from scripts.cookie_manager import is_cookie_valid, get_bing_cookies
+    
     # 首先运行 api.py 获取关键词
     try:
         import subprocess

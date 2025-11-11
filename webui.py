@@ -16,7 +16,6 @@ from flask_cors import CORS
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import ConfigManager
-from scheduler import AutomationScheduler
 
 # 配置日志
 logging.basicConfig(
@@ -38,6 +37,9 @@ execution_lock = Lock()
 def init_app():
     """初始化应用"""
     global config_manager, scheduler
+    
+    # Import scheduler only when WebUI is used
+    from scheduler import AutomationScheduler
     
     config_manager = ConfigManager()
     scheduler = AutomationScheduler(config_manager)
@@ -94,14 +96,26 @@ def update_config():
 
 @app.route('/api/accounts', methods=['GET'])
 def get_accounts():
-    """获取账户列表"""
+    """获取账户列表（包含积分信息）"""
     accounts = config_manager.get_accounts()
-    # 隐藏密码
+    # 隐藏密码，添加积分信息
     safe_accounts = []
     for acc in accounts:
-        safe_acc = {"username": acc.get("username")}
-        if "password" in acc:
-            safe_acc["has_password"] = True
+        username = acc.get("username")
+        safe_acc = {
+            "username": username,
+            "has_password": "password" in acc,
+            "points": None,
+            "last_updated": None
+        }
+        
+        # 尝试从缓存获取积分信息
+        cookie_file = os.path.join(os.path.dirname(__file__), f"cookie_{username}.txt")
+        if os.path.exists(cookie_file):
+            safe_acc["has_cookie"] = True
+        else:
+            safe_acc["has_cookie"] = False
+        
         safe_accounts.append(safe_acc)
     
     return jsonify({
@@ -144,9 +158,139 @@ def delete_account(username):
     """删除账户"""
     try:
         config_manager.remove_account(username)
+        
+        # 同时删除cookie文件
+        cookie_file = os.path.join(os.path.dirname(__file__), f"cookie_{username}.txt")
+        if os.path.exists(cookie_file):
+            os.remove(cookie_file)
+        
         return jsonify({
             "success": True,
             "message": f"账户 {username} 已删除"
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 400
+
+@app.route('/api/accounts/<username>/points', methods=['GET'])
+def get_account_points(username):
+    """获取账户积分"""
+    try:
+        cookie_file = os.path.join(os.path.dirname(__file__), f"cookie_{username}.txt")
+        
+        if not os.path.exists(cookie_file):
+            return jsonify({
+                "success": False,
+                "error": "Cookie文件不存在"
+            }), 404
+        
+        # 在后台线程查询积分，避免阻塞
+        from rewards_points import get_rewards_points
+        points = get_rewards_points(cookie_file)
+        
+        return jsonify({
+            "success": True,
+            "points": points
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 400
+
+@app.route('/api/accounts/<username>/cookie', methods=['POST'])
+def refresh_account_cookie(username):
+    """刷新账户Cookie"""
+    try:
+        # 获取账户信息
+        accounts = config_manager.get_accounts()
+        account = None
+        for acc in accounts:
+            if acc.get('username') == username:
+                account = acc
+                break
+        
+        if not account:
+            return jsonify({
+                "success": False,
+                "error": "账户不存在"
+            }), 404
+        
+        password = account.get('password')
+        if not password:
+            # 从请求中获取密码
+            data = request.json or {}
+            password = data.get('password')
+            
+            if not password:
+                return jsonify({
+                    "success": False,
+                    "error": "需要提供密码"
+                }), 400
+        
+        # 在后台线程刷新cookie
+        def refresh_cookie():
+            from scripts.cookie_manager import get_bing_cookies
+            cookie_file = os.path.join(os.path.dirname(__file__), f"cookie_{username}.txt")
+            try:
+                get_bing_cookies(username, password, headless=False, cookie_file=cookie_file)
+                logging.info(f"账户 {username} Cookie已刷新")
+            except Exception as e:
+                logging.error(f"刷新Cookie失败: {e}")
+        
+        thread = Thread(target=refresh_cookie)
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            "success": True,
+            "message": "Cookie刷新已启动"
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 400
+
+@app.route('/api/accounts/<username>', methods=['PUT'])
+def update_account(username):
+    """更新账户信息"""
+    try:
+        data = request.json or {}
+        new_username = data.get('username', username)
+        new_password = data.get('password')
+        
+        # 查找并更新账户
+        accounts = config_manager.get_accounts()
+        found = False
+        for acc in accounts:
+            if acc.get('username') == username:
+                acc['username'] = new_username
+                if new_password:
+                    acc['password'] = new_password
+                found = True
+                break
+        
+        if not found:
+            return jsonify({
+                "success": False,
+                "error": "账户不存在"
+            }), 404
+        
+        config_manager.save_accounts(accounts)
+        
+        # 如果用户名改变，重命名cookie文件
+        if username != new_username:
+            old_cookie = os.path.join(os.path.dirname(__file__), f"cookie_{username}.txt")
+            new_cookie = os.path.join(os.path.dirname(__file__), f"cookie_{new_username}.txt")
+            if os.path.exists(old_cookie):
+                os.rename(old_cookie, new_cookie)
+        
+        return jsonify({
+            "success": True,
+            "message": "账户已更新"
         })
     except Exception as e:
         return jsonify({

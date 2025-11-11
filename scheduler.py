@@ -15,8 +15,6 @@ from typing import Optional
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import ConfigManager
-from task_runner import TaskRunner
-from scripts.cookie_manager import is_cookie_valid, get_bing_cookies
 
 logging.basicConfig(
     level=logging.INFO,
@@ -162,6 +160,10 @@ class AutomationScheduler:
     
     def _execute_account_task(self, username: str):
         """执行单个账户的任务"""
+        # Lazy import to avoid loading selenium when not needed
+        from task_runner import TaskRunner
+        from scripts.cookie_manager import is_cookie_valid, get_bing_cookies
+        
         account = None
         for acc in self.config_manager.get_accounts():
             if acc.get('username') == username:
@@ -255,6 +257,10 @@ class AutomationScheduler:
     
     def _execute_manual_account_task(self, username: str, device: str):
         """手动执行单个账户的任务"""
+        # Lazy import to avoid loading selenium when not needed
+        from task_runner import TaskRunner
+        from scripts.cookie_manager import is_cookie_valid, get_bing_cookies
+        
         account = None
         for acc in self.config_manager.get_accounts():
             if acc.get('username') == username:
