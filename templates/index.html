@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Microsoft Rewards 自动化管理</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        
+        .tabs {
+            display: flex;
+            background: #f5f5f5;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            border: none;
+            background: transparent;
+            font-size: 1em;
+        }
+        
+        .tab:hover {
+            background: #e8e8e8;
+        }
+        
+        .tab.active {
+            background: white;
+            border-bottom: 3px solid #667eea;
+            color: #667eea;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .status-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .status-item {
+            background: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .status-item h3 {
+            font-size: 0.9em;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+        
+        .status-item p {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .account-list {
+            list-style: none;
+        }
+        
+        .account-item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .account-item:hover {
+            background: #e9ecef;
+        }
+        
+        .log-container {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .log-entry {
+            margin-bottom: 10px;
+            padding: 5px;
+            border-left: 3px solid #667eea;
+            padding-left: 10px;
+        }
+        
+        .log-timestamp {
+            color: #888;
+            font-size: 0.85em;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px;
+        }
+        
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Microsoft Rewards 自动化管理</h1>
+            <p>智能管理您的 Microsoft Rewards 积分获取</p>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('dashboard')">仪表盘</button>
+            <button class="tab" onclick="switchTab('accounts')">账户管理</button>
+            <button class="tab" onclick="switchTab('config')">配置管理</button>
+            <button class="tab" onclick="switchTab('execute')">手动执行</button>
+            <button class="tab" onclick="switchTab('logs')">执行日志</button>
+        </div>
+        
+        <div class="content">
+            <!-- 仪表盘 -->
+            <div id="dashboard" class="tab-content active">
+                <div class="status-card">
+                    <h2>系统状态</h2>
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <h3>自动化状态</h3>
+                            <p id="automation-status">加载中...</p>
+                        </div>
+                        <div class="status-item">
+                            <h3>账户数量</h3>
+                            <p id="accounts-count">0</p>
+                        </div>
+                        <div class="status-item">
+                            <h3>下次运行</h3>
+                            <p id="next-run-time">--</p>
+                        </div>
+                        <div class="status-item">
+                            <h3>日志条数</h3>
+                            <p id="logs-count">0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <button class="btn btn-success" onclick="startScheduler()">启动自动化</button>
+                    <button class="btn btn-danger" onclick="stopScheduler()">停止自动化</button>
+                    <button class="btn btn-secondary" onclick="refreshStatus()">刷新状态</button>
+                </div>
+            </div>
+            
+            <!-- 账户管理 -->
+            <div id="accounts" class="tab-content">
+                <h2>账户列表</h2>
+                <ul id="account-list" class="account-list">
+                    <li>加载中...</li>
+                </ul>
+                
+                <h2 style="margin-top: 30px;">添加账户</h2>
+                <form onsubmit="addAccount(event)">
+                    <div class="form-group">
+                        <label>用户名</label>
+                        <input type="text" id="new-username" required>
+                    </div>
+                    <div class="form-group">
+                        <label>密码（可选）</label>
+                        <input type="password" id="new-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary">添加账户</button>
+                </form>
+            </div>
+            
+            <!-- 配置管理 -->
+            <div id="config" class="tab-content">
+                <h2>配置设置</h2>
+                <div id="config-form">
+                    <h3>自动化配置</h3>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="automation-enabled">
+                        <label>启用自动化</label>
+                    </div>
+                    <div class="form-group">
+                        <label>运行模式</label>
+                        <select id="automation-mode">
+                            <option value="random_24h">24小时内随机运行</option>
+                            <option value="fixed">固定时间运行</option>
+                        </select>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="first-run-on-start">
+                        <label>启动时立即运行</label>
+                    </div>
+                    
+                    <h3 style="margin-top: 30px;">执行配置</h3>
+                    <div class="form-group">
+                        <label>最大搜索次数</label>
+                        <input type="number" id="max-search-count" min="1" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>基础延迟（秒）最小值</label>
+                        <input type="number" id="base-delay-min" min="0" max="60">
+                    </div>
+                    <div class="form-group">
+                        <label>基础延迟（秒）最大值</label>
+                        <input type="number" id="base-delay-max" min="0" max="60">
+                    </div>
+                    <div class="form-group">
+                        <label>重试延迟（秒）</label>
+                        <input type="number" id="retry-delay" min="1" max="60">
+                    </div>
+                    <div class="form-group">
+                        <label>最大重试次数</label>
+                        <input type="number" id="max-retries" min="1" max="10">
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="simulate-typing">
+                        <label>模拟打字</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="headless">
+                        <label>无头模式</label>
+                    </div>
+                    
+                    <h3 style="margin-top: 30px;">设备配置</h3>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="pc-enabled">
+                        <label>启用PC设备</label>
+                    </div>
+                    <div class="form-group">
+                        <label>PC User-Agent</label>
+                        <textarea id="pc-user-agent" rows="3"></textarea>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="mobile-enabled">
+                        <label>启用移动设备</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Mobile User-Agent</label>
+                        <textarea id="mobile-user-agent" rows="3"></textarea>
+                    </div>
+                    
+                    <h3 style="margin-top: 30px;">WebUI配置</h3>
+                    <div class="form-group">
+                        <label>监听地址</label>
+                        <input type="text" id="webui-host">
+                    </div>
+                    <div class="form-group">
+                        <label>监听端口</label>
+                        <input type="number" id="webui-port" min="1" max="65535">
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+                    <button class="btn btn-secondary" onclick="loadConfig()">重新加载</button>
+                </div>
+            </div>
+            
+            <!-- 手动执行 -->
+            <div id="execute" class="tab-content">
+                <h2>手动执行任务</h2>
+                <form onsubmit="executeTask(event)">
+                    <div class="form-group">
+                        <label>选择账户</label>
+                        <select id="execute-username">
+                            <option value="">所有账户</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>选择设备</label>
+                        <select id="execute-device">
+                            <option value="all">全部设备</option>
+                            <option value="pc">PC</option>
+                            <option value="mobile">移动设备</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">开始执行</button>
+                </form>
+                <div id="execute-result" style="margin-top: 20px;"></div>
+            </div>
+            
+            <!-- 执行日志 -->
+            <div id="logs" class="tab-content">
+                <h2>执行日志</h2>
+                <button class="btn btn-secondary" onclick="loadLogs()" style="margin-bottom: 20px;">刷新日志</button>
+                <div id="log-container" class="log-container">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 切换标签
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+            
+            // 加载对应数据
+            if (tabName === 'dashboard') loadStatus();
+            if (tabName === 'accounts') loadAccounts();
+            if (tabName === 'config') loadConfig();
+            if (tabName === 'logs') loadLogs();
+        }
+        
+        // 加载状态
+        async function loadStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('automation-status').textContent = 
+                        data.status.automation_enabled ? '✅ 运行中' : '❌ 已停止';
+                    document.getElementById('accounts-count').textContent = data.status.accounts_count;
+                    document.getElementById('next-run-time').textContent = 
+                        data.status.next_run_time ? new Date(data.status.next_run_time).toLocaleString() : '--';
+                    document.getElementById('logs-count').textContent = data.status.logs_count;
+                }
+            } catch (error) {
+                console.error('加载状态失败:', error);
+            }
+        }
+        
+        function refreshStatus() {
+            loadStatus();
+        }
+        
+        // 加载账户
+        async function loadAccounts() {
+            try {
+                const response = await fetch('/api/accounts');
+                const data = await response.json();
+                if (data.success) {
+                    const list = document.getElementById('account-list');
+                    list.innerHTML = '';
+                    
+                    if (data.accounts.length === 0) {
+                        list.innerHTML = '<li>暂无账户</li>';
+                    } else {
+                        data.accounts.forEach(account => {
+                            const li = document.createElement('li');
+                            li.className = 'account-item';
+                            li.innerHTML = `
+                                <div>
+                                    <span style="font-weight: bold;">${account.username}</span>
+                                    ${account.has_password ? '🔐' : ''}
+                                    ${account.has_cookie ? '🍪' : ''}
+                                    <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                                        <span id="points-${account.username}">积分: 加载中...</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <button class="btn btn-secondary" onclick="refreshPoints('${account.username}')">查询积分</button>
+                                    <button class="btn btn-secondary" onclick="refreshCookie('${account.username}')">刷新Cookie</button>
+                                    <button class="btn btn-secondary" onclick="editAccount('${account.username}')">编辑</button>
+                                    <button class="btn btn-danger" onclick="deleteAccount('${account.username}')">删除</button>
+                                </div>
+                            `;
+                            list.appendChild(li);
+                            
+                            // 自动加载积分（可选）
+                            if (account.has_cookie) {
+                                loadAccountPoints(account.username);
+                            }
+                        });
+                    }
+                    
+                    // 更新执行选择器
+                    const select = document.getElementById('execute-username');
+                    select.innerHTML = '<option value="">所有账户</option>';
+                    data.accounts.forEach(account => {
+                        const option = document.createElement('option');
+                        option.value = account.username;
+                        option.textContent = account.username;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('加载账户失败:', error);
+            }
+        }
+        
+        // 加载账户积分
+        async function loadAccountPoints(username) {
+            try {
+                const response = await fetch(`/api/accounts/${username}/points`);
+                const data = await response.json();
+                const pointsElem = document.getElementById(`points-${username}`);
+                
+                if (data.success && data.points.success) {
+                    const p = data.points;
+                    pointsElem.innerHTML = `
+                        积分: ${p.available_points} 
+                        ${p.lifetime_points > 0 ? `(总计: ${p.lifetime_points})` : ''}
+                        ${p.daily_point_max > 0 ? `| 今日: ${p.daily_point_progress}/${p.daily_point_max}` : ''}
+                    `;
+                    pointsElem.style.color = '#28a745';
+                } else {
+                    pointsElem.textContent = `积分: 查询失败 (${data.points.error || data.error})`;
+                    pointsElem.style.color = '#dc3545';
+                }
+            } catch (error) {
+                const pointsElem = document.getElementById(`points-${username}`);
+                if (pointsElem) {
+                    pointsElem.textContent = '积分: 查询失败';
+                    pointsElem.style.color = '#dc3545';
+                }
+            }
+        }
+        
+        // 刷新积分
+        async function refreshPoints(username) {
+            const pointsElem = document.getElementById(`points-${username}`);
+            pointsElem.textContent = '积分: 查询中...';
+            pointsElem.style.color = '#666';
+            await loadAccountPoints(username);
+        }
+        
+        // 刷新Cookie
+        async function refreshCookie(username) {
+            if (!confirm(`确定要刷新账户 ${username} 的Cookie吗？这将打开浏览器进行登录。`)) return;
+            
+            try {
+                const response = await fetch(`/api/accounts/${username}/cookie`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Cookie刷新已启动，请在浏览器中完成登录');
+                } else {
+                    alert('刷新失败: ' + data.error);
+                }
+            } catch (error) {
+                alert('刷新失败: ' + error);
+            }
+        }
+        
+        // 编辑账户
+        function editAccount(username) {
+            const newUsername = prompt('输入新用户名 (留空不修改):', username);
+            const newPassword = prompt('输入新密码 (留空不修改):');
+            
+            if (newUsername === null) return; // 用户取消
+            
+            const updateData = {};
+            if (newUsername && newUsername !== username) {
+                updateData.username = newUsername;
+            }
+            if (newPassword) {
+                updateData.password = newPassword;
+            }
+            
+            if (Object.keys(updateData).length === 0) {
+                alert('没有修改任何内容');
+                return;
+            }
+            
+            fetch(`/api/accounts/${username}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(updateData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('账户已更新');
+                    loadAccounts();
+                } else {
+                    alert('更新失败: ' + data.error);
+                }
+            })
+            .catch(error => alert('更新失败: ' + error));
+        }
+        
+        // 添加账户
+        async function addAccount(event) {
+            event.preventDefault();
+            const username = document.getElementById('new-username').value;
+            const password = document.getElementById('new-password').value;
+            
+            try {
+                const response = await fetch('/api/accounts', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, password})
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('账户添加成功');
+                    document.getElementById('new-username').value = '';
+                    document.getElementById('new-password').value = '';
+                    loadAccounts();
+                } else {
+                    alert('添加失败: ' + data.error);
+                }
+            } catch (error) {
+                alert('添加失败: ' + error);
+            }
+        }
+        
+        // 删除账户
+        async function deleteAccount(username) {
+            if (!confirm(`确定要删除账户 ${username} 吗？`)) return;
+            
+            try {
+                const response = await fetch(`/api/accounts/${username}`, {method: 'DELETE'});
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('账户已删除');
+                    loadAccounts();
+                } else {
+                    alert('删除失败: ' + data.error);
+                }
+            } catch (error) {
+                alert('删除失败: ' + error);
+            }
+        }
+        
+        // 加载配置
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/config');
+                const data = await response.json();
+                if (data.success) {
+                    const config = data.config;
+                    document.getElementById('automation-enabled').checked = config.automation.enabled;
+                    document.getElementById('automation-mode').value = config.automation.mode || 'random_24h';
+                    document.getElementById('first-run-on-start').checked = config.automation.first_run_on_start;
+                    document.getElementById('max-search-count').value = config.execution.max_search_count;
+                    document.getElementById('base-delay-min').value = config.execution.base_delay[0];
+                    document.getElementById('base-delay-max').value = config.execution.base_delay[1];
+                    document.getElementById('retry-delay').value = config.execution.retry_delay;
+                    document.getElementById('max-retries').value = config.execution.max_retries;
+                    document.getElementById('simulate-typing').checked = config.execution.simulate_typing;
+                    document.getElementById('headless').checked = config.execution.headless;
+                    document.getElementById('pc-enabled').checked = config.devices.pc.enabled;
+                    document.getElementById('pc-user-agent').value = config.devices.pc.user_agent;
+                    document.getElementById('mobile-enabled').checked = config.devices.mobile.enabled;
+                    document.getElementById('mobile-user-agent').value = config.devices.mobile.user_agent;
+                    document.getElementById('webui-host').value = config.webui.host;
+                    document.getElementById('webui-port').value = config.webui.port;
+                }
+            } catch (error) {
+                console.error('加载配置失败:', error);
+            }
+        }
+        
+        // 保存配置
+        async function saveConfig() {
+            const config = {
+                'automation.enabled': document.getElementById('automation-enabled').checked,
+                'automation.mode': document.getElementById('automation-mode').value,
+                'automation.first_run_on_start': document.getElementById('first-run-on-start').checked,
+                'execution.max_search_count': parseInt(document.getElementById('max-search-count').value),
+                'execution.base_delay': [
+                    parseInt(document.getElementById('base-delay-min').value),
+                    parseInt(document.getElementById('base-delay-max').value)
+                ],
+                'execution.retry_delay': parseInt(document.getElementById('retry-delay').value),
+                'execution.max_retries': parseInt(document.getElementById('max-retries').value),
+                'execution.simulate_typing': document.getElementById('simulate-typing').checked,
+                'execution.headless': document.getElementById('headless').checked,
+                'devices.pc.enabled': document.getElementById('pc-enabled').checked,
+                'devices.pc.user_agent': document.getElementById('pc-user-agent').value,
+                'devices.mobile.enabled': document.getElementById('mobile-enabled').checked,
+                'devices.mobile.user_agent': document.getElementById('mobile-user-agent').value,
+                'webui.host': document.getElementById('webui-host').value,
+                'webui.port': parseInt(document.getElementById('webui-port').value)
+            };
+            
+            try {
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(config)
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('配置已保存');
+                    loadStatus(); // 刷新状态
+                } else {
+                    alert('保存失败: ' + data.error);
+                }
+            } catch (error) {
+                alert('保存失败: ' + error);
+            }
+        }
+        
+        // 执行任务
+        async function executeTask(event) {
+            event.preventDefault();
+            const username = document.getElementById('execute-username').value;
+            const device = document.getElementById('execute-device').value;
+            
+            const resultDiv = document.getElementById('execute-result');
+            resultDiv.innerHTML = '<div class="alert alert-info">任务正在执行中，请稍候...</div>';
+            
+            try {
+                const response = await fetch('/api/execute', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username, device})
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = '<div class="alert alert-success">任务已启动！请查看执行日志了解进度。</div>';
+                } else {
+                    resultDiv.innerHTML = `<div class="alert alert-error">执行失败: ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="alert alert-error">执行失败: ${error}</div>`;
+            }
+        }
+        
+        // 加载日志
+        async function loadLogs() {
+            try {
+                const response = await fetch('/api/logs');
+                const data = await response.json();
+                const container = document.getElementById('log-container');
+                
+                if (data.success && data.logs.length > 0) {
+                    container.innerHTML = data.logs.map(log => `
+                        <div class="log-entry">
+                            <span class="log-timestamp">[${new Date(log.timestamp).toLocaleString()}]</span>
+                            ${log.username ? `[${log.username}]` : ''}
+                            ${log.device ? `[${log.device}]` : ''}
+                            ${JSON.stringify(log.result || log)}
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<p>暂无日志</p>';
+                }
+            } catch (error) {
+                console.error('加载日志失败:', error);
+            }
+        }
+        
+        // 启动调度器
+        async function startScheduler() {
+            try {
+                const response = await fetch('/api/scheduler/start', {method: 'POST'});
+                const data = await response.json();
+                if (data.success) {
+                    alert('调度器已启动');
+                    loadStatus();
+                } else {
+                    alert('启动失败: ' + data.error);
+                }
+            } catch (error) {
+                alert('启动失败: ' + error);
+            }
+        }
+        
+        // 停止调度器
+        async function stopScheduler() {
+            try {
+                const response = await fetch('/api/scheduler/stop', {method: 'POST'});
+                const data = await response.json();
+                if (data.success) {
+                    alert('调度器已停止');
+                    loadStatus();
+                } else {
+                    alert('停止失败: ' + data.error);
+                }
+            } catch (error) {
+                alert('停止失败: ' + error);
+            }
+        }
+        
+        // 初始化
+        loadStatus();
+        setInterval(loadStatus, 30000); // 每30秒刷新状态
+    </script>
+</body>
+</html>

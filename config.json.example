@@ -1,0 +1,33 @@
+{
+  "version": "1.0.0",
+  "automation": {
+    "enabled": true,
+    "mode": "random_24h",
+    "first_run_on_start": false,
+    "timezone": "Asia/Shanghai"
+  },
+  "execution": {
+    "max_search_count": 50,
+    "simulate_typing": true,
+    "headless": false,
+    "base_delay": [1, 15],
+    "retry_delay": 5,
+    "max_retries": 3
+  },
+  "devices": {
+    "pc": {
+      "enabled": true,
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 Edg/132.0.0.0"
+    },
+    "mobile": {
+      "enabled": true,
+      "user_agent": "Mozilla/5.0 (Linux; Android 14; 23078RKD5C Build/UP1A.230905.011) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.193 Mobile Safari/537.36"
+    }
+  },
+  "webui": {
+    "enabled": true,
+    "host": "0.0.0.0",
+    "port": 5000,
+    "websocket_port": 5001
+  }
+}

@@ -36,6 +36,8 @@ env/
 chrome_profile_*/
 cookie_*.txt
 account.json
+config.json
+script_log.txt
 
 # OS
 .DS_Store
